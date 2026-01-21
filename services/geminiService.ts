@@ -7,31 +7,38 @@ const aiClient = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const STUDENT_NAMES = "Kivlan, Zaid, May, Fio, Aisyah, Yasmin, Firzo, Uwais, Aca, Rayya, Azizi, Afi, Regina, Naya, Nia, Khalid, Alva, Rifky, Rafiq, Bariq, Bilal, Azka, Dzikra, Azra, Fatiha, Hanin, Hana";
 
 export const generateAssessment = async (inputs: FormInputs) => {
+  const isLowerGrade = inputs.grade === 'Kelas 1' || inputs.grade === 'Kelas 2';
+  const optionCount = isLowerGrade ? 3 : 4;
+  
   const tpText = inputs.learningObjectives.length > 0 
     ? `Tujuan Pembelajaran (TP): ${inputs.learningObjectives.join(", ")}` 
-    : "Tujuan Pembelajaran (TP): Tidak dispesifikasikan (fokus pada materi pokok)";
+    : "Tujuan Pembelajaran (TP): Sesuai standar kurikulum nasional";
 
   const prompt = `
-    Bertindaklah sebagai Ahli Kurikulum dan Guru Profesional di Indonesia.
-    Buatlah perangkat evaluasi berdasarkan Kurikulum Merdeka (CP 046/H/KR/2025).
+    Bertindaklah sebagai Guru Profesional Indonesia yang ahli dalam Kurikulum Merdeka (CP 046/H/KR/2025).
+    Buatlah soal evaluasi untuk Tahun Pelajaran 2025/2026.
 
     Parameter:
-    - Jenjang & Kelas: ${inputs.level} - ${inputs.grade}
+    - Kelas: ${inputs.grade}
     - Mata Pelajaran: ${inputs.subject}
-    - Materi Pokok: ${inputs.materials.join(", ")}
+    - Materi: ${inputs.materials.join(", ")}
     - ${tpText}
     - Gaya: ${inputs.style}
     - Taksonomi: ${inputs.taxonomy}
-    - Komposisi: PG (${inputs.countMCQ}), Isian (${inputs.countShort}), Uraian (${inputs.countEssay})
 
-    Ketentuan Khusus (WAJIB):
-    1. KONTEKS UMUM: Gunakan konteks kehidupan sehari-hari siswa di Indonesia yang inklusif dan umum (lingkungan sekolah, rumah, bermain, dsb).
-    2. CAPAIAN PEMBELAJARAN (CP): Sertakan teks CP yang LENGKAP dan AKURAT sesuai Keputusan Kepala BSKAP No. 046/H/KR/2025 untuk Fase dan Jenjang tersebut.
-    3. NAMA TOKOH: Jika soal menggunakan nama orang, WAJIB memilih dari daftar ini: ${STUDENT_NAMES}.
-    4. GAMBAR (STIMULUS): Jika soal membutuhkan stimulus visual (grafik, diagram, ilustrasi), tandai "needsImage": true dan berikan "imagePrompt" yang detail untuk generator gambar.
-    5. BAHASA: Gunakan bahasa yang ramah anak, sederhana, dan sesuai usia siswa.
+    ATURAN KHUSUS KONTEN & FORMAT:
+    1. PILIHAN GANDA (PG): Jangan menggunakan tanda tanya (?). Gunakan format kalimat rumpang (kalimat tidak lengkap) yang diakhiri dengan titik-titik (....).
+       Contoh: "${STUDENT_NAMES.split(',')[0].trim()} sedang belajar seni rupa materi kolase. Kolase adalah ...."
+    2. JUMLAH OPSI: Untuk ${inputs.grade}, berikan TEPAT ${optionCount} pilihan jawaban.
+    3. PENULISAN OPSI (PENTING): 
+       - Jangan menyertakan label "A.", "B.", "C." di dalam teks opsi (hanya isi jawabannya saja).
+       - Awalan isi opsi menggunakan huruf kecil (kecuali nama orang/tempat atau aturan EBI lainnya).
+       - Contoh: "seni menempel kertas", "melukis di atas kanvas".
+    4. NAMA TOKOH: Gunakan nama dari daftar ini saja: ${STUDENT_NAMES}.
+    5. BAHASA: Gunakan diksi yang akrab bagi anak-anak Indonesia, sederhana, dan mudah dipahami.
+    6. TAHUN PELAJARAN: 2025/2026.
 
-    Output dalam JSON.
+    Output dalam format JSON.
   `;
 
   const response = await aiClient.models.generateContent({
@@ -55,7 +62,11 @@ export const generateAssessment = async (inputs: FormInputs) => {
                 cognitiveLevel: { type: Type.STRING },
                 difficulty: { type: Type.STRING },
                 questionText: { type: Type.STRING },
-                options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                options: { 
+                  type: Type.ARRAY, 
+                  items: { type: Type.STRING },
+                  description: `Exactly ${optionCount} options. No labels like A/B/C.`
+                },
                 correctAnswer: { type: Type.STRING },
                 scoringGuide: { type: Type.STRING },
                 tpAssociated: { type: Type.STRING },
@@ -79,7 +90,7 @@ export const generateImageForQuestion = async (imagePrompt: string) => {
     model: 'gemini-2.5-flash-image',
     contents: {
       parts: [
-        { text: `Create a professional educational illustration. Subject: ${imagePrompt}. Style: Clean line art or minimalist flat vector, white background, high contrast, suitable for black and white printing on school exam papers.` }
+        { text: `Educational illustration for kids: ${imagePrompt}. Style: Black and white line art, clean strokes, minimalist, no shading, white background, suitable for school printing.` }
       ]
     }
   });

@@ -168,7 +168,7 @@ const InputForm: React.FC<Props> = ({ onGenerate, isLoading }) => {
           <Settings2 size={16} /> Konfigurasi Soal
         </div>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500">Gaya Soal</label>
             <select value={formData.style} onChange={e => setFormData({...formData, style: e.target.value as QuestionStyle})} className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold">
@@ -178,10 +178,17 @@ const InputForm: React.FC<Props> = ({ onGenerate, isLoading }) => {
             </select>
           </div>
           <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500">Kerangka Taksonomi</label>
+            <select value={formData.taxonomy} onChange={e => setFormData({...formData, taxonomy: e.target.value as TaxonomyType})} className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold">
+              <option value={TaxonomyType.BLOOM}>Bloom (C1-C6)</option>
+              <option value={TaxonomyType.SOLO}>SOLO Taxonomy</option>
+            </select>
+          </div>
+          <div className="space-y-1 col-span-1 sm:col-span-2">
             <label className="text-[10px] font-bold text-slate-500">Stimulus Gambar</label>
             <div className="flex items-center gap-2 h-10">
               <input type="checkbox" id="smartImg" checked={formData.smartImages} onChange={e => setFormData({...formData, smartImages: e.target.checked})} className="w-4 h-4 accent-indigo-600" />
-              <label htmlFor="smartImg" className="text-xs font-bold text-slate-700">Otomatisasi Gambar</label>
+              <label htmlFor="smartImg" className="text-xs font-bold text-slate-700">Otomatisasi Gambar Berbasis AI</label>
             </div>
           </div>
         </div>
@@ -189,15 +196,15 @@ const InputForm: React.FC<Props> = ({ onGenerate, isLoading }) => {
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-white p-3 rounded-2xl border text-center">
             <label className="text-[9px] font-bold text-slate-400 block mb-1">PG</label>
-            <input type="number" value={formData.countMCQ} onChange={e => setFormData({...formData, countMCQ: parseInt(e.target.value) || 0})} className="w-full text-center font-bold text-indigo-600 outline-none" />
+            <input type="number" value={formData.countMCQ} onChange={e => setFormData({...formData, countMCQ: parseInt(e.target.value) || 0})} className="w-full text-center font-bold text-indigo-600 bg-transparent outline-none" />
           </div>
           <div className="bg-white p-3 rounded-2xl border text-center">
             <label className="text-[9px] font-bold text-slate-400 block mb-1">ISIAN</label>
-            <input type="number" value={formData.countShort} onChange={e => setFormData({...formData, countShort: parseInt(e.target.value) || 0})} className="w-full text-center font-bold text-indigo-600 outline-none" />
+            <input type="number" value={formData.countShort} onChange={e => setFormData({...formData, countShort: parseInt(e.target.value) || 0})} className="w-full text-center font-bold text-indigo-600 bg-transparent outline-none" />
           </div>
           <div className="bg-white p-3 rounded-2xl border text-center">
             <label className="text-[9px] font-bold text-slate-400 block mb-1">URAIAN</label>
-            <input type="number" value={formData.countEssay} onChange={e => setFormData({...formData, countEssay: parseInt(e.target.value) || 0})} className="w-full text-center font-bold text-indigo-600 outline-none" />
+            <input type="number" value={formData.countEssay} onChange={e => setFormData({...formData, countEssay: parseInt(e.target.value) || 0})} className="w-full text-center font-bold text-indigo-600 bg-transparent outline-none" />
           </div>
         </div>
       </div>

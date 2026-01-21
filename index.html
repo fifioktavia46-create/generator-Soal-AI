@@ -4,16 +4,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E-Guru: Evaluasi Siswa SD</title>
+    <title>Generator Soal Kurikulum Merdeka</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
         h1, h2, h3 { font-family: 'Plus Jakarta Sans', sans-serif; }
+        
         @media print {
+            body { background: white !important; padding: 0 !important; margin: 0 !important; }
+            #root > div > div.sticky { display: none !important; }
+            #root > div > footer { display: none !important; }
             .no-print { display: none !important; }
-            .print-only { display: block !important; }
-            .page-break { page-break-before: always; }
+            .bg-slate-100 { background: white !important; }
+            .shadow-2xl { shadow: none !important; box-shadow: none !important; }
+            .max-w-6xl { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .mt-8 { margin-top: 0 !important; }
+            
+            /* Ensure the paper takes full width of printed page */
+            #question-paper-root {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+            
+            @page {
+                size: A4;
+                margin: 20mm;
+            }
+        }
+
+        /* Prevent image shadows in print */
+        .no-print-shadow img {
+            box-shadow: none !important;
+            filter: grayscale(100%);
         }
     </style>
 <script type="importmap">
