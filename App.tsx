@@ -5,7 +5,7 @@ import { generateAssessment, generateImageForQuestion } from './services/geminiS
 import InputForm from './components/InputForm';
 import BlueprintTable from './components/BlueprintTable';
 import QuestionPaper from './components/QuestionPaper';
-import { Download, Printer, ArrowLeft, Table as TableIcon, FileText, Copy, Sparkles, Loader2, FileJson } from 'lucide-react';
+import { Download, Printer, ArrowLeft, Table as TableIcon, FileText, Sparkles, FileJson } from 'lucide-react';
 
 const App: React.FC = () => {
   const [data, setData] = useState<AssessmentData | null>(null);
@@ -20,7 +20,6 @@ const App: React.FC = () => {
     setError(null);
     setProgress(null);
     try {
-      // Step 1: Generate Text Content
       const result = await generateAssessment(inputs);
       const initialData: AssessmentData = {
         ...inputs,
@@ -32,13 +31,12 @@ const App: React.FC = () => {
       setData(initialData);
       setLoading(false);
 
-      // Step 2: Auto-generate images if needed
-      const questionsToImg = initialData.questions.filter(q => q.needsImage);
+      const questionsToImg = result.questions.filter((q: any) => q.needsImage);
       if (questionsToImg.length > 0) {
         setGeneratingImages(true);
         setProgress({ current: 0, total: questionsToImg.length });
         
-        const updatedQuestions = [...initialData.questions];
+        const updatedQuestions = [...result.questions];
         
         for (let i = 0; i < questionsToImg.length; i++) {
           const q = questionsToImg[i];
@@ -52,7 +50,7 @@ const App: React.FC = () => {
               }
             }
           } catch (err) {
-            console.error("Failed to generate image for question " + q.id, err);
+            console.error("Image gen failed", err);
           }
           setProgress({ current: i + 1, total: questionsToImg.length });
         }
@@ -61,57 +59,71 @@ const App: React.FC = () => {
       }
     } catch (err) {
       console.error(err);
-      setError("Terjadi kesalahan sistem. Silakan coba beberapa saat lagi.");
+      setError("Gagal menghasilkan soal. Pastikan koneksi internet stabil.");
       setLoading(false);
-      setGeneratingImages(false);
     }
   };
 
   const handlePrint = () => {
-    // Small timeout to ensure everything is rendered before print dialog appears
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    setTimeout(() => window.print(), 100);
   };
 
-  const copyToWord = () => {
+  const downloadWord = () => {
     const el = document.getElementById('question-paper-root');
-    if (el) {
-      // Temporarily hide no-print elements to ensure a clean copy
-      const noPrintElements = el.querySelectorAll('.no-print');
-      noPrintElements.forEach(item => (item as HTMLElement).style.display = 'none');
-
-      const range = document.createRange();
-      range.selectNode(el);
-      window.getSelection()?.removeAllRanges();
-      window.getSelection()?.addRange(range);
-      
-      try {
-        const successful = document.execCommand('copy');
-        if (successful) {
-          alert('Berhasil disalin! Sekarang buka Microsoft Word dan tempelkan (Ctrl+V) soal Anda.');
-        }
-      } catch (err) {
-        alert('Gagal menyalin. Silakan seleksi manual isi lembar soal.');
-      } finally {
-        window.getSelection()?.removeAllRanges();
-        // Restore visibility
-        noPrintElements.forEach(item => (item as HTMLElement).style.display = '');
-      }
-    }
+    if (!el) return;
+    
+    // Simple HTML to Word (DOC) trick
+    const htmlHeader = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head><meta charset='utf-8'><title>Export DOC</title>
+      <style>
+        body { font-family: 'Times New Roman', serif; }
+        .no-print { display: none !important; }
+        table { width: 100%; border-collapse: collapse; }
+        .question-block { margin-bottom: 15px; }
+      </style>
+      </head><body>`;
+    const htmlFooter = "</body></html>";
+    const sourceHTML = htmlHeader + el.innerHTML + htmlFooter;
+    
+    const blob = new Blob(['\ufeff', sourceHTML], {
+      type: 'application/msword'
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Soal_${data?.subject.replace(/\s+/g, '_')}_${data?.grade.replace(/\s+/g, '_')}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const copyTableToClipboard = () => {
-    const table = document.querySelector('table');
-    if (table) {
-      const range = document.createRange();
-      range.selectNode(table);
-      window.getSelection()?.removeAllRanges();
-      window.getSelection()?.addRange(range);
-      document.execCommand('copy');
-      window.getSelection()?.removeAllRanges();
-      alert('Tabel kisi-kisi disalin! Tempelkan di Microsoft Excel untuk format terbaik.');
-    }
+  const downloadExcel = () => {
+    if (!data) return;
+    
+    // Create CSV content for simplicity and high compatibility
+    const headers = ["No", "CP", "TP", "Indikator", "Level", "Kesulitan", "Soal", "Kunci"];
+    const rows = data.questions.map((q, i) => [
+      (i + 1).toString(),
+      data.cpReference.replace(/,/g, ';'),
+      q.tpAssociated.replace(/,/g, ';'),
+      q.indicator.replace(/,/g, ';'),
+      q.cognitiveLevel,
+      q.difficulty,
+      q.questionText.replace(/,/g, ';').replace(/\n/g, ' '),
+      q.correctAnswer.replace(/,/g, ';')
+    ]);
+    
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Kisi_Kisi_${data.subject.replace(/\s+/g, '_')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (!data) {
@@ -119,7 +131,7 @@ const App: React.FC = () => {
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50">
         <div className="w-full max-w-lg mb-12 text-center">
            <div className="inline-flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-full text-indigo-600 font-bold text-xs mb-4 shadow-sm border border-indigo-100">
-             <Sparkles size={14} /> Berbasis Gemini AI • Kurikulum Merdeka 2025/2026
+             <Sparkles size={14} /> Generator Soal Kurikulum Merdeka 2025/2026
            </div>
         </div>
         <InputForm onGenerate={handleGenerate} isLoading={loading} />
@@ -130,125 +142,53 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 pb-20">
-      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 no-print shadow-sm">
+      <div className="sticky top-0 z-50 bg-white border-b border-slate-200 no-print shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => { if(confirm('Buat soal baru? Data yang sudah ada akan terhapus.')) setData(null); }}
-              className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all border border-slate-200"
-            >
+            <button onClick={() => setData(null)} className="p-2 hover:bg-slate-100 rounded-xl transition-all border border-slate-200">
               <ArrowLeft size={18} className="text-slate-700" />
             </button>
             <div className="hidden sm:block">
-              <h1 className="text-lg font-black text-slate-900 tracking-tighter">Lembar Evaluasi AI</h1>
-              <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">{data.subject} • TP 2025/2026</p>
+              <h1 className="text-lg font-black text-slate-900 tracking-tighter">Lembar Evaluasi</h1>
+              <p className="text-[10px] font-bold text-indigo-600">{data.subject} • {data.grade}</p>
             </div>
           </div>
 
           <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200">
-            <button 
-              onClick={() => setActiveTab('soal')}
-              className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'soal' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}
-            >
+            <button onClick={() => setActiveTab('soal')} className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold ${activeTab === 'soal' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>
               <FileText size={16} /> Soal
             </button>
-            <button 
-              onClick={() => setActiveTab('kisi-kisi')}
-              className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'kisi-kisi' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}
-            >
+            <button onClick={() => setActiveTab('kisi-kisi')} className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold ${activeTab === 'kisi-kisi' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>
               <TableIcon size={16} /> Kisi-kisi
             </button>
           </div>
 
           <div className="flex items-center gap-2">
             {activeTab === 'soal' ? (
-              <button 
-                onClick={copyToWord}
-                className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-black hover:bg-indigo-100 transition-all border border-indigo-200 shadow-sm"
-              >
-                <Copy size={14} /> COPY KE WORD
+              <button onClick={downloadWord} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 transition-all shadow-md">
+                <Download size={14} /> DOWNLOAD WORD
               </button>
             ) : (
-              <button 
-                onClick={copyTableToClipboard}
-                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-black hover:bg-emerald-100 transition-all border border-emerald-200 shadow-sm"
-              >
-                <FileJson size={14} /> COPY KE EXCEL
+              <button onClick={downloadExcel} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 transition-all shadow-md">
+                <FileJson size={14} /> DOWNLOAD EXCEL
               </button>
             )}
-            <button 
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black hover:bg-slate-800 transition-all shadow-lg"
-            >
-              <Printer size={14} /> CETAK SEKARANG
+            <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black hover:bg-slate-800 transition-all">
+              <Printer size={14} /> CETAK
             </button>
           </div>
         </div>
         
         {generatingImages && progress && (
-          <div className="w-full h-1 bg-slate-100 relative">
-            <div 
-              className="h-full bg-indigo-600 transition-all duration-700 ease-out" 
-              style={{ width: `${(progress.current / progress.total) * 100}%` }}
-            ></div>
+          <div className="w-full h-1 bg-slate-100">
+            <div className="h-full bg-indigo-600 transition-all duration-700" style={{ width: `${(progress.current / progress.total) * 100}%` }}></div>
           </div>
         )}
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 mt-10">
-        {activeTab === 'soal' ? (
-          <QuestionPaper data={data} />
-        ) : (
-          <div className="space-y-6">
-             <div className="bg-white p-8 rounded-[2rem] shadow-2xl border border-slate-100">
-                <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-10">
-                   <div>
-                     <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Matriks Kisi-kisi Evaluasi</h2>
-                     <p className="text-slate-500 font-medium text-sm mt-1">Struktur penilaian mandiri TP 2025/2026 • CP 046/H/KR/2025.</p>
-                   </div>
-                   <div className="bg-indigo-600 text-white px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-indigo-200">
-                     Fase {data.phase}
-                   </div>
-                </div>
-                <BlueprintTable data={data} />
-             </div>
-             
-             <div className="p-10 bg-gradient-to-br from-indigo-900 via-slate-900 to-black rounded-[2.5rem] text-white shadow-2xl no-print relative overflow-hidden group">
-               <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-110 transition-transform duration-1000">
-                 <Sparkles size={180} />
-               </div>
-               <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
-                 <div className="p-6 bg-white/10 rounded-3xl backdrop-blur-xl border border-white/20 shadow-inner">
-                   <FileText size={48} className="text-indigo-400" />
-                 </div>
-                 <div className="flex-1">
-                   <h3 className="text-2xl font-black tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 to-white">Tips & Panduan Cepat</h3>
-                   <ul className="space-y-4">
-                     {[
-                       "Gunakan tombol 'Copy ke Word' untuk memindahkan seluruh soal dan gambar ke dokumen sekolah dengan rapi.",
-                       "Seluruh soal pilihan ganda (PG) menggunakan format rumpang (....) sesuai permintaan Anda.",
-                       "Tahun Pelajaran telah diperbarui ke 2025/2026 untuk persiapan tahun ajaran baru.",
-                       "Isi opsi jawaban kini menggunakan huruf kecil di awal kalimat agar lebih bersahabat bagi siswa jenjang awal."
-                     ].map((item, i) => (
-                       <li key={i} className="flex gap-4 text-indigo-100/80 text-sm font-semibold">
-                         <div className="h-5 w-5 rounded-full bg-indigo-500/20 flex-shrink-0 flex items-center justify-center text-[10px] text-indigo-300 border border-indigo-500/30">{i+1}</div>
-                         {item}
-                       </li>
-                     ))}
-                   </ul>
-                 </div>
-               </div>
-             </div>
-          </div>
-        )}
+      <div className="max-w-6xl mx-auto px-4 mt-8">
+        {activeTab === 'soal' ? <QuestionPaper data={data} /> : <BlueprintTable data={data} />}
       </div>
-      
-      <footer className="mt-20 py-12 border-t border-slate-200 bg-white/80 no-print">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mb-2">Kurikulum Merdeka Assistant • 2025/2026</p>
-          <div className="h-1 w-12 bg-indigo-600 mx-auto rounded-full"></div>
-        </div>
-      </footer>
     </div>
   );
 };

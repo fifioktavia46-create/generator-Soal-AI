@@ -12,33 +12,37 @@ export const generateAssessment = async (inputs: FormInputs) => {
   
   const tpText = inputs.learningObjectives.length > 0 
     ? `Tujuan Pembelajaran (TP): ${inputs.learningObjectives.join(", ")}` 
-    : "Tujuan Pembelajaran (TP): Sesuai standar kurikulum nasional";
+    : "Tujuan Pembelajaran (TP): Fokus pada kompetensi dasar kurikulum nasional";
 
   const prompt = `
-    Bertindaklah sebagai Guru Profesional Indonesia yang ahli dalam Kurikulum Merdeka (CP 046/H/KR/2025).
-    Buatlah soal evaluasi untuk Tahun Pelajaran 2025/2026.
+    Bertindaklah sebagai Guru Profesional Indonesia. Buatlah soal evaluasi Kurikulum Merdeka Tahun Pelajaran 2025/2026.
+    
+    JUMLAH SOAL WAJIB (HARUS TEPAT):
+    - Pilihan Ganda: ${inputs.countMCQ} soal
+    - Isian Singkat: ${inputs.countShort} soal
+    - Uraian: ${inputs.countEssay} soal
+    TOTAL: ${inputs.countMCQ + inputs.countShort + inputs.countEssay} soal.
 
-    Parameter:
+    PARAMETER:
     - Kelas: ${inputs.grade}
     - Mata Pelajaran: ${inputs.subject}
     - Materi: ${inputs.materials.join(", ")}
-    - ${tpText}
     - Gaya: ${inputs.style}
     - Taksonomi: ${inputs.taxonomy}
 
-    ATURAN KHUSUS KONTEN & FORMAT:
-    1. PILIHAN GANDA (PG): Jangan menggunakan tanda tanya (?). Gunakan format kalimat rumpang (kalimat tidak lengkap) yang diakhiri dengan titik-titik (....).
-       Contoh: "${STUDENT_NAMES.split(',')[0].trim()} sedang belajar seni rupa materi kolase. Kolase adalah ...."
-    2. JUMLAH OPSI: Untuk ${inputs.grade}, berikan TEPAT ${optionCount} pilihan jawaban.
-    3. PENULISAN OPSI (PENTING): 
-       - Jangan menyertakan label "A.", "B.", "C." di dalam teks opsi (hanya isi jawabannya saja).
-       - Awalan isi opsi menggunakan huruf kecil (kecuali nama orang/tempat atau aturan EBI lainnya).
-       - Contoh: "seni menempel kertas", "melukis di atas kanvas".
-    4. NAMA TOKOH: Gunakan nama dari daftar ini saja: ${STUDENT_NAMES}.
-    5. BAHASA: Gunakan diksi yang akrab bagi anak-anak Indonesia, sederhana, dan mudah dipahami.
-    6. TAHUN PELAJARAN: 2025/2026.
+    ATURAN KONTEN & FORMAT:
+    1. PILIHAN GANDA (PG): Gunakan format kalimat rumpang diakhiri titik-titik (....). JANGAN pakai tanda tanya.
+       Contoh: "${STUDENT_NAMES.split(',')[0].trim()} membeli buah apel. Apel berwarna ...."
+    2. OPSI JAWABAN:
+       - Untuk ${inputs.grade}, berikan ${optionCount} opsi.
+       - Teks opsi HARUS diawali huruf kecil (kecuali nama/tempat).
+       - JANGAN sertakan label A/B/C dalam string opsi.
+    3. STIMULUS GAMBAR: 
+       - Untuk Kelas 1 dan 2, minimal 70% soal HARUS memiliki "needsImage": true.
+       - Berikan deskripsi "imagePrompt" yang sangat detail untuk ilustrasi hitam putih.
+    4. NAMA TOKOH: Pilih dari: ${STUDENT_NAMES}.
 
-    Output dalam format JSON.
+    Output HARUS JSON lengkap. Jangan dipotong.
   `;
 
   const response = await aiClient.models.generateContent({
@@ -62,11 +66,7 @@ export const generateAssessment = async (inputs: FormInputs) => {
                 cognitiveLevel: { type: Type.STRING },
                 difficulty: { type: Type.STRING },
                 questionText: { type: Type.STRING },
-                options: { 
-                  type: Type.ARRAY, 
-                  items: { type: Type.STRING },
-                  description: `Exactly ${optionCount} options. No labels like A/B/C.`
-                },
+                options: { type: Type.ARRAY, items: { type: Type.STRING } },
                 correctAnswer: { type: Type.STRING },
                 scoringGuide: { type: Type.STRING },
                 tpAssociated: { type: Type.STRING },
@@ -90,7 +90,7 @@ export const generateImageForQuestion = async (imagePrompt: string) => {
     model: 'gemini-2.5-flash-image',
     contents: {
       parts: [
-        { text: `Educational illustration for kids: ${imagePrompt}. Style: Black and white line art, clean strokes, minimalist, no shading, white background, suitable for school printing.` }
+        { text: `Sederhana, garis hitam putih, minimalis, tanpa bayangan, latar putih, untuk soal anak sekolah: ${imagePrompt}` }
       ]
     }
   });
